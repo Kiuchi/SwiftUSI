@@ -42,6 +42,10 @@ extension Engine {
         }
     }
     
+    public func setOption(id: String, value: String? = nil) {
+        input("setoption name \(id)" + (value.map{ " \($0)" } ?? ""))
+    }
+    
     public func usiNewGame() {
         input("usinewgame")
     }
@@ -50,10 +54,14 @@ extension Engine {
         input("position startpos moves \(moves.joined(separator: " "))")
     }
     
+    public func position(sfen: String, moves: [String]) {
+        input("position sfen \(sfen) moves \(moves.joined(separator: " "))")
+    }
+    
     public func go(processing: @escaping (String) -> (), completion: @escaping (String) -> ()) {
         input("go byoyomi 1000") { output in
-            let option = output.split(separator: " ").first
-            switch option {
+            let subCommand = output.split(separator: " ").first
+            switch subCommand {
             case .some("info"):
                 processing(output)
             case .some("bestmove"):
