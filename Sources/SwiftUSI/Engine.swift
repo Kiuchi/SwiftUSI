@@ -1,13 +1,19 @@
 import Foundation
 
 @available(macOS 10.13, *)
-public struct Engine {
+public class Engine {
     
     internal let process: CommandLine
     
-    public init(path: String) {
-        process = CommandLine(path: path)
-        usi()
+    public init?(path: URL) {
+        guard let process = try? CommandLine(path: path) else {
+            return nil
+        }
+        self.process = process
+    }
+    
+    deinit {
+        quit()
     }
     
     internal func input(_ input: String, handler: @escaping (String) -> () = { _ in }) {
@@ -17,11 +23,15 @@ public struct Engine {
 }
 
 
-@available(OSX 10.13, *)
+@available(macOS 10.13, *)
 extension Engine {
     
-    internal func usi() {
-        input("usi")
+    public func usi(completion: @escaping () -> ()) {
+        input("usi") { output in
+            if output == "usiok" {
+                completion()
+            }
+        }
     }
     
     public func isReady(completion: @escaping () -> ()) {
