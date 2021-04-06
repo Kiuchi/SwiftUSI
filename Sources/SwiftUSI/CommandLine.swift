@@ -10,40 +10,46 @@ class CommandLine {
     private let outputPipe = Pipe()
     private let encode: String.Encoding
     
-    public init(path: String, arguments: [String] = [], encoding: String.Encoding = .utf8) {
+    public init(path: URL, arguments: [String] = [], encoding: String.Encoding = .utf8) throws {
         self.encode = encoding
-        process.launchPath = path
+        process.executableURL = path
+        process.currentDirectoryURL = path.deletingLastPathComponent()
         process.arguments = arguments
         process.standardInput = inputPipe
         process.standardOutput = outputPipe
+        try process.run()
         
         NotificationCenter.default.addObserver(forName: Notification.Name.NSFileHandleDataAvailable, object: outputPipe.fileHandleForReading, queue: nil, using: { [weak self] notification in
             guard let `self` = self else { return }
             
-            if let out = String(data: self.outputPipe.fileHandleForReading.availableData, encoding: self.encode) {
-                self.handler(out)
+            func callHandler() {
+                String(data: self.outputPipe.fileHandleForReading.availableData, encoding: self.encode)?.split(separator: "\n").forEach { output in
+                    self.handler(String(output))
+                }
             }
-            
+
+            callHandler()
+
             if self.process.isRunning {
                 self.outputPipe.fileHandleForReading.waitForDataInBackgroundAndNotify()
             } else {
-                if let out = String(data: self.outputPipe.fileHandleForReading.readDataToEndOfFile(), encoding: self.encode) {
-                    self.handler(out)
-                }
-                self.process.terminate()
-                NotificationCenter.default.removeObserver(self, name: Notification.Name.NSFileHandleDataAvailable, object: self.outputPipe.fileHandleForReading)
+                callHandler()
+                self.terminate()
             }
         })
-        outputPipe.fileHandleForReading.waitForDataInBackgroundAndNotify()
-        process.launch()
+        self.outputPipe.fileHandleForReading.waitForDataInBackgroundAndNotify()
     }
     
     deinit {
-        process.terminate()
-        NotificationCenter.default.removeObserver(self, name: Notification.Name.NSFileHandleDataAvailable, object: self.outputPipe.fileHandleForReading)
+        terminate()
     }
 
     public func input(_ string: String) {
         inputPipe.fileHandleForWriting.write((string + "\n").data(using: encode)!)
+    }
+    
+    internal func terminate() {
+        process.terminate()
+        NotificationCenter.default.removeObserver(self, name: Notification.Name.NSFileHandleDataAvailable, object: self.outputPipe.fileHandleForReading)
     }
 }
